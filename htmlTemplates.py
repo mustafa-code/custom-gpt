@@ -34,12 +34,10 @@ bot_template = '''
     </div>
     <div class="message">
     {{MSG}}
-    <hr>
-    {{SOURCE_DOCUMENT}}
     </div> 
-    <a href="{{UPVOTE_URL}}"><img src="https://cdn-icons-png.flaticon.com/128/2107/2107671.png" style="width: 32px;height: 32px;" alt="Up Vote"></a>  
+    <a href="{{UPVOTE_URL}}"><img src="https://cdn-icons-png.flaticon.com/128/2107/2107671.png" style="width: 20px;height: 20px;" alt="Up Vote"></a>  
         <span style="width: 42px;"></span>
-    <a href="{{DOWNVOTE_URL}}"><img src="https://cdn-icons-png.flaticon.com/128/2107/2107671.png" class="up_down" style="width: 32px;height: 32px;" alt="Down Vote"></a>
+    <a href="{{DOWNVOTE_URL}}"><img src="https://cdn-icons-png.flaticon.com/128/2107/2107671.png" class="up_down" style="width: 20px;height: 20px;" alt="Down Vote"></a>
 </div>
 '''
 

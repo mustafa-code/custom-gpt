@@ -48,9 +48,9 @@ def get_conversation_chain(vectorstore):
     llm = ChatOpenAI(temperature = 0)
     # llm = HuggingFaceHub(repo_id="google/flan-t5-xxl", model_kwargs={"temperature":0.5, "max_length":512})
 
-    template = """Use the following pieces of context to answer the question at the end. If you don't know the answer,
-    just say 'I will check with my manger and get back to you' and don't try to make up an answer or add anything else after this sentence.
-    If user want to register ask him from his name and say 'Your data saved and our team will call you.' and do not add any thing else.
+    template = """Use the following pieces of context to answer the question at the end. 
+    If user want to register ask him from his name, once he answered then ask from his email, once answered ask from his phone, 
+    once answered say Your data saved and our team will call you. and do not add any thing else.
     Always refer to your self as student service manager in the conversation.
 
     {context}
@@ -85,9 +85,6 @@ def handle_userinput(user_question):
         upvoteUrl = "javascript:;"
         downvoteUrl = "javascript:;"
 
-        userTemp = user_template.replace("{{MSG}}", message["query"])
-        st.write(userTemp, unsafe_allow_html=True)
-
         # if "لا يتوفر" in message["result"] or "ليس لدي" in message["result"] :
         #     result = "I will check with my manger and get back to you"
         #     print("Call API and send a request to manger in OTAS or something else")
@@ -100,6 +97,9 @@ def handle_userinput(user_question):
         botTemp = botTemp.replace("{{SOURCE_DOCUMENT}}", message["source_documents"][0].page_content)
 
         st.write(botTemp, unsafe_allow_html=True)
+
+        userTemp = user_template.replace("{{MSG}}", message["query"])
+        st.write(userTemp, unsafe_allow_html=True)
 
 def main():
     load_dotenv()
