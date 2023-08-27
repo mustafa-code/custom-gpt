@@ -49,8 +49,8 @@ def get_conversation_chain(vectorstore):
     # llm = HuggingFaceHub(repo_id="google/flan-t5-xxl", model_kwargs={"temperature":0.5, "max_length":512})
 
     template = """Use the following pieces of context to answer the question at the end. If you don't know the answer,
-    just say 'I will check with my manger and get back to you' and don't try to make up an answer or add anything else after this sentence.
-    If user want to register ask him from his name and say 'Your data saved and our team will call you.' and do not add any thing else.
+    just say I will check with my manger and get back to you, this message should be translated to question's language.
+    If user want to register ask him from his name after he write his name then ask him from his phone after he write his phone then ask him from his email after he write his email then say Your data saved and our team will call you, and add JSON in format 'name, email, phone', the phone and the email are required user have to write them before showing him his data was saved.
     Always refer to your self as student service manager in the conversation.
 
     {context}
@@ -68,7 +68,7 @@ def get_conversation_chain(vectorstore):
         llm=llm,
         chain_type="stuff",
         retriever=vectorstore.as_retriever(),
-        return_source_documents=True,
+        return_source_documents=False,
         chain_type_kwargs={"prompt": prompt, "memory": memory},
     )
     return conversation_chain
@@ -81,25 +81,17 @@ def handle_userinput(user_question):
 
     for i, message in enumerate(st.session_state.chat_history):
         
-        
         upvoteUrl = "javascript:;"
         downvoteUrl = "javascript:;"
-
-        userTemp = user_template.replace("{{MSG}}", message["query"])
-        st.write(userTemp, unsafe_allow_html=True)
-
-        # if "لا يتوفر" in message["result"] or "ليس لدي" in message["result"] :
-        #     result = "I will check with my manger and get back to you"
-        #     print("Call API and send a request to manger in OTAS or something else")
-        #     response = requests.post("http://otas.oktamam.test/otas-api/ask-manager", json={"question": user_question})
-        # else :
         result = message["result"]
         botTemp = bot_template.replace("{{MSG}}", result)
         botTemp = botTemp.replace("{{DOWNVOTE_URL}}", downvoteUrl)
         botTemp = botTemp.replace("{{UPVOTE_URL}}", upvoteUrl)
-        botTemp = botTemp.replace("{{SOURCE_DOCUMENT}}", message["source_documents"][0].page_content)
-
+        # botTemp = botTemp.replace("{{SOURCE_DOCUMENT}}", message["source_documents"][0].page_content)
         st.write(botTemp, unsafe_allow_html=True)
+
+        userTemp = user_template.replace("{{MSG}}", message["query"])
+        st.write(userTemp, unsafe_allow_html=True)    
 
 def main():
     load_dotenv()
