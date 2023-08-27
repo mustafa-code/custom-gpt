@@ -43,15 +43,22 @@ def get_vectorstore(text_chunks):
     vectorstore = FAISS.from_texts(texts=text_chunks, embedding=embeddings)
     return vectorstore
 
+def print_data():
+    print("Data: here...........")
 
 def get_conversation_chain(vectorstore):
     llm = ChatOpenAI(temperature = 0)
     # llm = HuggingFaceHub(repo_id="google/flan-t5-xxl", model_kwargs={"temperature":0.5, "max_length":512})
 
-    template = """Use the following pieces of context to answer the question at the end. If you don't know the answer,
-    just say I will check with my manger and get back to you, this message should be translated to question's language.
-    If user want to register ask him from his name after he write his name then ask him from his phone after he write his phone then ask him from his email after he write his email then say Your data saved and our team will call you, and add JSON in format 'name, email, phone', the phone and the email are required user have to write them before showing him his data was saved.
-    Always refer to your self as student service manager in the conversation.
+    template = """
+
+    You are a student assestant to help students appling in OKtamam System.
+    If you do not know the answer say I will call my manager and get back to you and then call print_data function.
+    If the student want to register you should ask him for some data one by one:
+     - What is your Name
+     - What is your Phone
+     - What is your Email
+    After the student enter all this data then say your data saved and then call print_data function.
 
     {context}
 
