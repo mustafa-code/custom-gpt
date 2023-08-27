@@ -25,6 +25,7 @@ css = '''
 .up_down {
     transform: rotate(180deg);
 }
+</style>
 '''
 
 bot_template = '''
