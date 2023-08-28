@@ -33,10 +33,12 @@ bot_template = '''
     <div class="avatar">
         <img src="https://i.ibb.co/cN0nmSj/Screenshot-2023-05-28-at-02-37-21.png" style="max-height: 32px; max-width: 32px; border-radius: 50%; object-fit: cover;">
     </div>
-    <div class="message" type="upvote" style="flex: auto;">{{MSG}}</div>
-    <a class="vote" target="_self" href="{{UPVOTE_URL}}"><img src="https://cdn-icons-png.flaticon.com/128/2107/2107671.png" class="vote" style="width: 32px;height: 32px;" alt="Up Vote"></a>
-    <span style="width: 16px;"></span>
-    <a class="vote" target="_self" type="downvote" href="{{DOWNVOTE_URL}}"><img src="https://cdn-icons-png.flaticon.com/128/2107/2107671.png" class="up_down vote" style="width: 32px;height: 32px;" alt="Down Vote"></a>
+    <div class="message">
+    {{MSG}}
+    </div> 
+    <a href="{{UPVOTE_URL}}"><img src="https://cdn-icons-png.flaticon.com/128/2107/2107671.png" style="width: 20px;height: 20px;" alt="Up Vote"></a>  
+        <span style="width: 42px;"></span>
+    <a href="{{DOWNVOTE_URL}}"><img src="https://cdn-icons-png.flaticon.com/128/2107/2107671.png" class="up_down" style="width: 20px;height: 20px;" alt="Down Vote"></a>
 </div>
 '''
 

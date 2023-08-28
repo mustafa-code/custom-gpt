@@ -90,6 +90,12 @@ def handle_userinput(user_question):
         
         upvoteUrl = "javascript:;"
         downvoteUrl = "javascript:;"
+
+        # if "لا يتوفر" in message["result"] or "ليس لدي" in message["result"] :
+        #     result = "I will check with my manger and get back to you"
+        #     print("Call API and send a request to manger in OTAS or something else")
+        #     response = requests.post("http://otas.oktamam.test/otas-api/ask-manager", json={"question": user_question})
+        # else :
         result = message["result"]
         botTemp = bot_template.replace("{{MSG}}", result)
         botTemp = botTemp.replace("{{DOWNVOTE_URL}}", downvoteUrl)
@@ -98,7 +104,7 @@ def handle_userinput(user_question):
         st.write(botTemp, unsafe_allow_html=True)
 
         userTemp = user_template.replace("{{MSG}}", message["query"])
-        st.write(userTemp, unsafe_allow_html=True)    
+        st.write(userTemp, unsafe_allow_html=True)
 
 def main():
     load_dotenv()
