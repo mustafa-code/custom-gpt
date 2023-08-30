@@ -1,89 +1,21 @@
+import json
 import requests
 import streamlit as st
-from dotenv import load_dotenv
-from PyPDF2 import PdfReader
-from PyPDF2.errors import PdfReadError
-from langchain.text_splitter import CharacterTextSplitter
-from langchain.embeddings import OpenAIEmbeddings, HuggingFaceInstructEmbeddings
-from langchain.vectorstores import FAISS
+
+from langchain.embeddings import OpenAIEmbeddings
+from langchain.vectorstores import Chroma
 from langchain.chat_models import ChatOpenAI
 from langchain.memory import ConversationBufferMemory
-from langchain.chains import ConversationalRetrievalChain
 from langchain.chains import RetrievalQA
 from htmlTemplates import css, bot_template, user_template
-from langchain.llms import HuggingFaceHub
 from langchain.prompts import PromptTemplate
-
-def get_pdf_text(file_list):
-    text = ""
-    for file in file_list:
-        try:
-            pdf_reader = PdfReader(file)
-            for page in pdf_reader.pages:
-                text += page.extract_text()+"\n"
-        except PdfReadError:
-            text += file.read().decode("utf-8")+"\n"
-    return text
-
-
-def get_text_chunks(text):
-    text_splitter = CharacterTextSplitter(
-        separator="\n",
-        chunk_size=1000,
-        chunk_overlap=200,
-        length_function=len
-    )
-    chunks = text_splitter.split_text(text)
-    return chunks
-
-
-def get_vectorstore(text_chunks):
-    embeddings = OpenAIEmbeddings()
-    # embeddings = HuggingFaceInstructEmbeddings(model_name="hkunlp/instructor-xl")
-    vectorstore = FAISS.from_texts(texts=text_chunks, embedding=embeddings)
-    return vectorstore
-
-def print_data():
-    print("Data: here...........")
-
-def get_conversation_chain(vectorstore):
-    llm = ChatOpenAI(temperature = 0)
-    # llm = HuggingFaceHub(repo_id="google/flan-t5-xxl", model_kwargs={"temperature":0.5, "max_length":512})
-
-    template = """
-    Use the following pieces of context to answer the question at the end.
-    You are a student assistant to help students apply to OKTamam System.
-    Never say you are an AI model, always refer to yourself as a student assistant.
-    If you do not know the answer say I will call my manager and get back to you.
-    If the student wants to register you should ask him for some data one by one in separate questions:
-     - Name
-     - Phone
-     - Email Address
-    After the student enters all this data say Your data is saved and our team will call you.
-
-    {context}
-
-    {history}
-    Question: {question}
-    Helpful Answer:"""
-
-    prompt = PromptTemplate(input_variables=["history", "context", "question"], template=template)
-
-    memory = ConversationBufferMemory(
-        input_key="question", memory_key="history", return_messages=True)
-
-    conversation_chain = RetrievalQA.from_chain_type(
-        llm=llm,
-        chain_type="stuff",
-        retriever=vectorstore.as_retriever(),
-        return_source_documents=False,
-        chain_type_kwargs={"prompt": prompt, "memory": memory},
-    )
-    return conversation_chain
-
+from consts import CHROMA_SETTINGS, PERSIST_DIRECTORY
 
 def handle_userinput(user_question):
-    response = st.session_state.conversation(user_question)
+    response = st.session_state.conversation({
+        "query": user_question,
+        "history": st.session_state.chat_history,
+    })
 
     st.session_state.chat_history.insert(0, response)
 
@@ -101,42 +33,74 @@ def handle_userinput(user_question):
         userTemp = user_template.replace("{{MSG}}", message["query"])
         st.write(userTemp, unsafe_allow_html=True)
 
+    response = st.session_state.conversation("If my data completed return the data in JSON format, otherwise return 0")
+    if response["result"] != '0' and not st.session_state.send:
+        try:
+            stdData = json.loads(response["result"])
+            print("\n> System result:")
+            print(stdData)
+            response = requests.post("http://otas.oktamam.test/otas-api/ask-manager", data=stdData)
+            st.session_state.send = True
+        except json.JSONDecodeError as e:
+            print("Error decoding JSON:", e)
+
+    else :
+        print("\ndata not completed yet...\n")
+
 def main():
-    load_dotenv()
     st.set_page_config(page_title="Chat with multiple PDFs",
                        page_icon=":books:")
     st.write(css, unsafe_allow_html=True)
 
     if "conversation" not in st.session_state:
-        st.session_state.conversation = None
+        embeddings = OpenAIEmbeddings()
+        db = Chroma(
+            persist_directory=PERSIST_DIRECTORY,
+            embedding_function=embeddings,
+            client_settings=CHROMA_SETTINGS,
+        )
+        retriever = db.as_retriever()
+        llm = ChatOpenAI(temperature = 0)
+        template = """
+        Use the following pieces of context to answer the question at the end.
+        You are a student assistant to help students apply to OKTamam System.
+        Never say you are an AI model, always refer to yourself as a student assistant.
+        If you do not know the answer say I will call my manager and get back to you.
+        If the student wants to register you should ask him for some data one by one in separate questions:
+        - Name
+        - Phone
+        - Email Address
+        After the student enters all this data say Your data is saved and our team will call you.
+
+        {context}
+
+        {history}
+        Question: {question}
+        Helpful Answer:"""
+
+        prompt = PromptTemplate(input_variables=["history", "context", "question"], template=template)
+
+        memory = ConversationBufferMemory(
+            input_key="question", memory_key="history", return_messages=True)
+
+        qa = RetrievalQA.from_chain_type(
+            llm=llm,
+            chain_type="stuff",
+            retriever=retriever,
+            return_source_documents=True,
+            chain_type_kwargs={"prompt": prompt, "memory": memory},
+        )
+
+        st.session_state.conversation = qa
     if "chat_history" not in st.session_state:
         st.session_state.chat_history = []
+    if "send" not in st.session_state:
+        st.session_state.send = False
 
     st.header("Chat with multiple PDFs :books:")
     user_question = st.text_input("Ask a question about your documents:")
     if user_question:
         handle_userinput(user_question)
-
-    with st.sidebar:
-        st.subheader("Your documents")
-        pdf_docs = st.file_uploader(
-            "Upload your PDFs here and click on 'Process'", accept_multiple_files=True, type=["pdf", "txt"])
-        if st.button("Process"):
-            with st.spinner("Processing"):
-                # get pdf text
-                raw_text = get_pdf_text(pdf_docs)
-
-                # get the text chunks
-                text_chunks = get_text_chunks(raw_text)
-                st.write("Chunks length: {number}".format(number=len(text_chunks)))
-
-                # create vector store
-                vectorstore = get_vectorstore(text_chunks)
-
-                # create conversation chain
-                st.session_state.conversation = get_conversation_chain(
-                    vectorstore)
-
 
 if __name__ == '__main__':
     main()
