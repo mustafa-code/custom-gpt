@@ -23,7 +23,6 @@ CHROMA_SETTINGS = Settings(
 DOCUMENT_MAP = {
     ".txt": TextLoader,
     ".md": TextLoader,
-    ".py": TextLoader,
     ".pdf": PDFMinerLoader,
     ".csv": CSVLoader,
     ".xls": UnstructuredExcelLoader,

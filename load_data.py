@@ -5,7 +5,7 @@ from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, as_compl
 import click
 import torch
 from langchain.docstore.document import Document
-from langchain.embeddings import OpenAIEmbeddings, HuggingFaceInstructEmbeddings
+from langchain.embeddings import OpenAIEmbeddings
 from langchain.text_splitter import Language, RecursiveCharacterTextSplitter
 from langchain.vectorstores import Chroma
 
@@ -68,26 +68,20 @@ def load_documents(source_dir: str) -> list[Document]:
 
 def split_documents(documents: list[Document]) -> tuple[list[Document], list[Document]]:
     # Splits documents for correct Text Splitter
-    text_docs, python_docs = [], []
+    text_docs = []
     for doc in documents:
-        file_extension = os.path.splitext(doc.metadata["source"])[1]
-        if file_extension == ".py":
-            python_docs.append(doc)
-        else:
-            text_docs.append(doc)
+        text_docs.append(doc)
 
-    return text_docs, python_docs
+    return text_docs
 
 
 def main():
     documents = load_documents(SOURCE_DIRECTORY)
-    text_documents, python_documents = split_documents(documents)
+    text_documents = split_documents(documents)
+
     text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
-    python_splitter = RecursiveCharacterTextSplitter.from_language(
-        language=Language.PYTHON, chunk_size=880, chunk_overlap=200
-    )
     texts = text_splitter.split_documents(text_documents)
-    texts.extend(python_splitter.split_documents(python_documents))
+
     logging.info(f"Loaded {len(documents)} documents from {SOURCE_DIRECTORY}")
     logging.info(f"Split into {len(texts)} chunks of text")
 
@@ -102,9 +96,6 @@ def main():
     )
     db.persist()
     db = None
-
-
-
 
 
 if __name__ == '__main__':

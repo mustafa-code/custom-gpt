@@ -12,40 +12,21 @@ from langchain.prompts import PromptTemplate
 from consts import CHROMA_SETTINGS, PERSIST_DIRECTORY
 
 def handle_userinput(user_question):
-    response = st.session_state.conversation({
-        "query": user_question,
-        "history": st.session_state.chat_history,
-    })
+    response = st.session_state.conversation(user_question)
 
     st.session_state.chat_history.insert(0, response)
 
     for i, message in enumerate(st.session_state.chat_history):
-        
         upvoteUrl = "javascript:;"
         downvoteUrl = "javascript:;"
         result = message["result"]
         botTemp = bot_template.replace("{{MSG}}", result)
         botTemp = botTemp.replace("{{DOWNVOTE_URL}}", downvoteUrl)
         botTemp = botTemp.replace("{{UPVOTE_URL}}", upvoteUrl)
-        # botTemp = botTemp.replace("{{SOURCE_DOCUMENT}}", message["source_documents"][0].page_content)
         st.write(botTemp, unsafe_allow_html=True)
 
         userTemp = user_template.replace("{{MSG}}", message["query"])
         st.write(userTemp, unsafe_allow_html=True)
-
-    response = st.session_state.conversation("If my data completed return the data in JSON format, otherwise return 0")
-    if response["result"] != '0' and not st.session_state.send:
-        try:
-            stdData = json.loads(response["result"])
-            print("\n> System result:")
-            print(stdData)
-            response = requests.post("http://otas.oktamam.test/otas-api/ask-manager", data=stdData)
-            st.session_state.send = True
-        except json.JSONDecodeError as e:
-            print("Error decoding JSON:", e)
-
-    else :
-        print("\ndata not completed yet...\n")
 
 def main():
     st.set_page_config(page_title="Chat with multiple PDFs",
