@@ -1,7 +1,3 @@
-import json
-import requests
-import streamlit as st
-
 from langchain.embeddings import OpenAIEmbeddings
 from langchain.vectorstores import Chroma
 from langchain.chat_models import ChatOpenAI
@@ -19,7 +15,35 @@ def main():
         client_settings=CHROMA_SETTINGS,
     )
     retriever = db.as_retriever()
-    llm = ChatOpenAI(temperature = 0)
+    docs = retriever.get_relevant_documents(
+        "when did okan founded?"
+    )
+    for doc in docs:
+        print(doc.metadata["source"])
+        print(doc.page_content)
+    return
+    kwargs = {
+        "functions": [
+            {
+                "name": "sayHi",
+                "description": "A function to greate the user when he write his name",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "name": {
+                            "type": "string",
+                            "description": "The user name"
+                        }
+                    },
+                    "required": ["name"]
+                }
+            }
+        ],
+    }
+    llm = ChatOpenAI(
+        temperature = 0,
+        model_kwargs = kwargs
+    )
     template = """
     Use the following pieces of context to answer the question at the end.
     You are a student assistant to help students apply to OKTamam System.
@@ -30,6 +54,8 @@ def main():
     - Phone
     - Email Address
     After the student enters all this data say Your data is saved and our team will call you.
+    You must ask the student from his name first and then call sayHi function at once.
+
 
     {context}
 
@@ -47,20 +73,24 @@ def main():
         chain_type="stuff",
         retriever=retriever,
         return_source_documents=True,
-        chain_type_kwargs={"prompt": prompt, "memory": memory},
+        chain_type_kwargs={
+            "prompt": prompt, 
+            "memory": memory,
+        },
     )
 
     while True:
         query = input("\nEnter a query: ")
         if query == "exit":
+            # conversation.save(file_path="conversation.json")
             break
         # Get the answer from the chain
         response = conversation(query)
+        print("final response")
+        print(response)
         answer = response["result"]
 
         # Print the result
-        print("\n\n> Question:")
-        print(query)
         print("\n> Answer:")
         print(answer)
 

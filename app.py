@@ -41,11 +41,33 @@ def main():
             client_settings=CHROMA_SETTINGS,
         )
         retriever = db.as_retriever()
-        llm = ChatOpenAI(temperature = 0)
+        kwargs = {
+            "functions": [
+                {
+                    "name": "sayHi",
+                    "description": "A function to greate the user when he write his name",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "name": {
+                                "type": "string",
+                                "description": "The user name"
+                            }
+                        },
+                        "required": ["name"]
+                    }
+                }
+            ],
+        }
+        llm = ChatOpenAI(
+            temperature = 0,
+            model_kwargs = kwargs
+        )
         template = """
         Use the following pieces of context to answer the question at the end.
         You are a student assistant to help students apply to OKTamam System.
         Never say you are an AI model, always refer to yourself as a student assistant.
+        You must ask the student from his name first and then call sayHi function at once.
         If you do not know the answer say I will call my manager and get back to you.
         If the student wants to register you should ask him for some data one by one in separate questions:
         - Name
@@ -68,9 +90,12 @@ def main():
             llm=llm,
             chain_type="stuff",
             retriever=retriever,
-            return_source_documents=True,
+            return_source_documents=False,
             chain_type_kwargs={"prompt": prompt, "memory": memory},
         )
+
+        response = qa.run("What is the size of the Sun")
+        print(response)
 
         st.session_state.conversation = qa
     if "chat_history" not in st.session_state:
