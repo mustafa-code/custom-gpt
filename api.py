@@ -45,23 +45,36 @@ def get_func_def():
                         "type": "string",
                         "description": "The user's email"
                     },
+                    "nationalityId": {
+                        "type": "string",
+                        "description": "The student's country nationality id"
+                    },
+                    "residenceId": {
+                        "type": "string",
+                        "description": "The student's residence country id"
+                    },
                     "programName": {
                         "type": "string",
-                        "description": "The program\s name student want to apply in"
+                        "description": "The program's name student want to apply in"
                     },
                     "universityName": {
                         "type": "string",
-                        "description": "The school\s name student want to apply in"
+                        "description": "The school's name student want to apply in"
                     },
-                    "Nationality": {
-
+                    "fatherName": {
+                        "type": "string",
+                        "description": "The student's father name"
+                    },
+                    "motherName": {
+                        "type": "string",
+                        "description": "The student's mother name"
                     },
                     "lang": {
                         "type": "string",
                         "description": "The user's conversation language as a lang code like en, ar, or tr"
                     },
                 },
-                "required": ["name", "phone", "email", "programName", "universityName"]
+                "required": ["name", "phone", "email", "nationalityId", "residenceId", "programName", "universityName"]
             }
         },
         {
@@ -73,6 +86,10 @@ def get_func_def():
                     "question": {
                         "type": "string",
                         "description": "The user's question"
+                    },
+                    "studentData": {
+                        "type": "string",
+                        "description": "The student's data in JSON format"
                     },
                     "lang": {
                         "type": "string",
@@ -138,26 +155,26 @@ def callChat(content, chat_id = None, type = "user", function = None):
             Never say reach out to the university directly or any other similar sentences, instead ask the manager and he will respond to you.
             It's important to append student language, when calling any functions.
             If the student wants to register you should ask him for some data one by one in separate questions:
-                - Name
-                - Phone
-                - Email Address
-                - Nationality
-                - Residence Country
-                - Father name
-                - Mother name
-            when the user give you his/her name, email, and phone number call the registerStudent Function and add user language, program name and university name to the parameters.
-            If there any issue occur then you must call askManager Function and send the question and the language of the conversation.
+            - Name
+            - Phone
+            - Email Address
+            - Nationality
+            - Residence Country
+            - Father name
+            - Mother name
+            when the user give you his/her name, email, and phone number and add user language, program name and university name to the parameters, for Nationality and Residence Country you have to match with countries ids and use the id of the country as a parameter instead of the name and call the registerStudent Function.
+            If there any issue occur then you must call askManager Function and send the question, the language of the conversation and all other paramters in JSON format caused the issue.
 
 
             Context: '{datasource}'
             Country ids:
-                - Sudan: 121
-                - Egypt: 122
-                - Turkey: 123
-                - United Arab Emirates: 124
-                - Saudi Arabia: 125
-                - Qatar: 126
-                - Oman: 127
+            - Sudan: 121
+            - Egypt: 122
+            - Turkey: 123
+            - United Arab Emirates: 124
+            - Saudi Arabia: 125
+            - Qatar: 126
+            - Oman: 127
         """
     })
 
