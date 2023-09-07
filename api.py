@@ -113,9 +113,7 @@ def callChat(content, chat_id = None, type = "user", function = None):
             embedding_function=embeddings,
             client_settings=CHROMA_SETTINGS,
         )
-        retriever = db.as_retriever(
-            kwargs={'k': 6, 'lambda_mult': 0.25}
-        )
+        retriever = db.as_retriever()
         docs = retriever.get_relevant_documents(content)
         for doc in docs:
             source_documents.append({
