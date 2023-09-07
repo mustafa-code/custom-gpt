@@ -53,6 +53,9 @@ def get_func_def():
                         "type": "string",
                         "description": "The school\s name student want to apply in"
                     },
+                    "Nationality": {
+
+                    },
                     "lang": {
                         "type": "string",
                         "description": "The user's conversation language as a lang code like en, ar, or tr"
@@ -116,11 +119,12 @@ def callChat(content, chat_id = None, type = "user", function = None):
         retriever = db.as_retriever()
         docs = retriever.get_relevant_documents(content)
         for doc in docs:
-            source_documents.append({
-                "source": doc.metadata["source"],
-                "page_content": doc.page_content,
-            })
-            datasource += doc.page_content + "\n\n"
+            if doc.page_content not in datasource:
+                source_documents.append({
+                    "source": doc.metadata["source"],
+                    "page_content": doc.page_content,
+                })
+                datasource += doc.page_content + "\n\n"
 
     messages.insert(0, {
         "role": "system", 
@@ -137,11 +141,23 @@ def callChat(content, chat_id = None, type = "user", function = None):
                 - Name
                 - Phone
                 - Email Address
+                - Nationality
+                - Residence Country
+                - Father name
+                - Mother name
             when the user give you his/her name, email, and phone number call the registerStudent Function and add user language, program name and university name to the parameters.
             If there any issue occur then you must call askManager Function and send the question and the language of the conversation.
 
 
             Context: '{datasource}'
+            Country ids:
+                - Sudan: 121
+                - Egypt: 122
+                - Turkey: 123
+                - United Arab Emirates: 124
+                - Saudi Arabia: 125
+                - Qatar: 126
+                - Oman: 127
         """
     })
 
