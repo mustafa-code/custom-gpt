@@ -81,6 +81,21 @@ def get_func_def():
         }
     ]
 
+def save_history(chat_id, content, response, source_documents):
+    source_history_path = "histories/source_docs/"+chat_id+".json"
+    if os.path.isfile(source_history_path):
+        source_history = json.load(open(source_history_path))
+    else :
+        source_history = []
+    source_history.append({
+        "question": content,
+        "response": response,
+        "source_documents": source_documents,
+    })
+    source_file = open(source_history_path, "w")  
+    json.dump(source_history, source_file)
+    source_file.close()
+
 def callChat(content, chat_id = None, type = "user", function = None):
 
     file_json = "histories/"+chat_id+'.json'
@@ -99,7 +114,7 @@ def callChat(content, chat_id = None, type = "user", function = None):
             client_settings=CHROMA_SETTINGS,
         )
         retriever = db.as_retriever(
-            k=2
+            kwargs={'k': 6, 'lambda_mult': 0.25}
         )
         docs = retriever.get_relevant_documents(content)
         for doc in docs:
@@ -108,20 +123,6 @@ def callChat(content, chat_id = None, type = "user", function = None):
                 "page_content": doc.page_content,
             })
             datasource += doc.page_content + "\n\n"
-
-        source_history_path = "histories/source_docs/"+chat_id+".json"
-        if os.path.isfile(source_history_path):
-            source_history = json.load(open(source_history_path))
-        else :
-            source_history = []
-        source_history.append({
-            "question": content,
-            "source_documents": source_documents,
-        })
-        source_file = open(source_history_path, "w")  
-        json.dump(source_history, source_file)  
-        source_file.close()  
-
 
     messages.insert(0, {
         "role": "system", 
@@ -169,6 +170,8 @@ def callChat(content, chat_id = None, type = "user", function = None):
     messages.pop(0)
     json.dump(messages, save_file)  
     save_file.close()  
+
+    save_history(chat_id, content, response, source_documents)
 
     if response.get("function_call"):
         available_functions = {
