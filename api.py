@@ -2,6 +2,7 @@ import os
 import json
 import uuid
 import openai
+from flask_cors import CORS, cross_origin
 from flask import Flask, jsonify, request
 from langchain.embeddings import OpenAIEmbeddings
 from langchain.vectorstores import Chroma
@@ -10,6 +11,7 @@ from consts import CHROMA_SETTINGS, PERSIST_DIRECTORY
 openai.api_key = os.environ["OPENAI_API_KEY"]
 
 app = Flask(__name__)
+CORS(app)
 
 def registerStudent(data):
     print("registerStudent: "+json.dumps(data))
@@ -203,7 +205,8 @@ def callChat(content, chat_id = None, type = "user", function = None):
     response = openai.ChatCompletion.create(
         model="gpt-3.5-turbo",
         messages=messages,
-        functions=get_func_def()
+        functions=get_func_def(),
+        temperature=0,
     )["choices"][0]["message"]
 
     messages.append(response)
@@ -227,16 +230,25 @@ def callChat(content, chat_id = None, type = "user", function = None):
         function_response = fuction_to_call(function_args)
         return callChat(function_response, chat_id, "function", function_name)
 
+    source_history_path = "histories/source_docs/"+chat_id+".json"
+    if os.path.isfile(source_history_path):
+        source_history = json.load(open(source_history_path))
+    else :
+        source_history = []
+
     return {
         "response": response, 
         "chat_id": chat_id, 
+        "message_id": (len(source_history) - 1)
         # "source_documents": source_documents
     }
 
 @app.route("/api/prompt_route", methods=["POST"])
 def prompt_route():
-    question = request.form.get("question")
-    chat_id = request.form.get("chat_id")
+    data = request.get_json()
+
+    question = data.get("question")
+    chat_id = data.get("chat_id")
     # with_docs = request.form.get("with_docs")
 
     if chat_id is None:
@@ -245,6 +257,32 @@ def prompt_route():
     response = callChat(question, chat_id)
 
     return jsonify(response)
+
+@app.route("/api/report_answer", methods=["POST"])
+def report_answer():
+    data = request.get_json()
+
+    message_id = data.get("message_id")
+    chat_id = data.get("chat_id")
+
+    source_history_path = "histories/source_docs/"+chat_id+".json"
+    if os.path.isfile(source_history_path):
+        messages = json.load(open(source_history_path))
+        
+        print("Reporting this response from AI model: ")
+        print("Quest: "+messages[message_id]["question"])
+        print("Answer: "+messages[message_id]["response"]["content"])
+        count = len(messages[message_id]["source_documents"])
+        print(f"Source documents : {count} Docs")
+
+        return jsonify({
+            "status": True,
+        })
+    else :
+        return jsonify({
+            "status": False,
+            "message": "Invalid chat id, or conversation has been deleted."
+        })
 
 if __name__ == '__main__':
     app.run(debug=False, port=5110)
