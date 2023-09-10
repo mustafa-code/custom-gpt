@@ -14,14 +14,16 @@ app = Flask(__name__)
 def registerStudent(data):
     print("registerStudent: "+json.dumps(data))
     return json.dumps({
-        "status": False,
-        "message": "Fail to save student data."
+        "status": True,
+        "message": "Student data saved successfully",
+        # "message": "Fail to save student data.",
     })
 
 def askManager(data):
     print("askManager: "+json.dumps(data))
     return json.dumps({
         "status": True,
+        # "message": "The price is 20,000 USD per year"
         "message": "Question have been sent to manager and he will continue the conversation."
     })
 
@@ -73,8 +75,12 @@ def get_func_def():
                         "type": "string",
                         "description": "The user's conversation language as a lang code like en, ar, or tr"
                     },
+                    "chat_id": {
+                        "type": "string",
+                        "description": "The chat id provided in System role."
+                    },
                 },
-                "required": ["name", "phone", "email", "nationalityId", "residenceId", "programName", "universityName"]
+                "required": ["name", "phone", "email", "nationalityId", "residenceId", "programName", "universityName", "chat_id"]
             }
         },
         {
@@ -91,12 +97,16 @@ def get_func_def():
                         "type": "string",
                         "description": "The student's data in JSON format"
                     },
+                    "chat_id": {
+                        "type": "string",
+                        "description": "The chat id provided in System role."
+                    },
                     "lang": {
                         "type": "string",
                         "description": "The conversation language as a lang code like en, ar, or tr"
                     },
                 },
-                "required": ["question"]
+                "required": ["question", "chat_id"]
             }
         }
     ]
@@ -149,11 +159,11 @@ def callChat(content, chat_id = None, type = "user", function = None):
             Use the following pieces of context to answer user question.
             You are a student assistant to help students apply to OKTamam System.
             You should answer only to the request and questions related to (learning,universities,Oktamam company), if so apolgaize to the user.
-            Never say you are an AI model, always refer to yourself as a student assistant.
-            If you do not know the answer call askManager Function and send the user question and the language of the conversation to it.
-            Always answer with shortes answer you can, do not say too much.
+            Never say you are an AI model, always refer to yourself as a students assistant.
+            If you do not know the answer call askManager Function and send the user question and the language of the conversation to it, with chat id.
+            Always answer with shortes answer you can, do not say too much words.
             Never say reach out to the university directly or any other similar sentences, instead ask the manager and he will respond to you.
-            It's important to append student language, when calling any functions.
+            It's important to append student language and chat id, when calling any functions.
             If the student wants to register you should ask him for some data one by one in separate questions:
             - Name
             - Phone
@@ -162,10 +172,12 @@ def callChat(content, chat_id = None, type = "user", function = None):
             - Residence Country
             - Father name
             - Mother name
-            when the user give you his/her name, email, and phone number and add user language, program name and university name to the parameters, for Nationality and Residence Country you have to match with countries ids and use the id of the country as a parameter instead of the name and call the registerStudent Function.
+            when the user give you his/her name, email, and phone number and add user language, program name and university name to the parameters, for Nationality and Residence Country you have to match with countries ids and use the id of the country as a parameter instead of the name and call the registerStudent Function, without showing the ID in the conversation.
+            Never ask the student about his or her country IDs or show him or her any IDs.
             If there any issue occur then you must call askManager Function and send the question, the language of the conversation and all other paramters in JSON format caused the issue.
 
 
+            Chat Id: '{chat_id}'
             Context: '{datasource}'
             Country ids:
             - Sudan: 121
@@ -225,7 +237,7 @@ def callChat(content, chat_id = None, type = "user", function = None):
 def prompt_route():
     question = request.form.get("question")
     chat_id = request.form.get("chat_id")
-    with_docs = request.form.get("with_docs")
+    # with_docs = request.form.get("with_docs")
 
     if chat_id is None:
         chat_id = str(uuid.uuid4())
