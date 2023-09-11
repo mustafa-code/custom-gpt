@@ -2,11 +2,17 @@ import os
 import json
 import uuid
 import openai
+import datetime;
+import requests;
+from html_text import extract_text
 from flask_cors import CORS, cross_origin
 from flask import Flask, jsonify, request
 from langchain.embeddings import OpenAIEmbeddings
 from langchain.vectorstores import Chroma
-from consts import CHROMA_SETTINGS, PERSIST_DIRECTORY
+from consts import CHROMA_SETTINGS, PERSIST_DIRECTORY, SOURCE_DIRECTORY
+from load_data import get_docs, split_documents
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+import mysql.connector
 
 openai.api_key = os.environ["OPENAI_API_KEY"]
 
@@ -14,18 +20,24 @@ app = Flask(__name__)
 CORS(app)
 
 def registerStudent(data):
-    print("registerStudent: "+json.dumps(data))
-    return json.dumps({
-        "status": True,
-        "message": "Student data saved successfully",
-        # "message": "Fail to save student data.",
+    # Call an API to create student.
+    otasUrl = os.environ['OTAS_URL']
+    apiKey = os.environ['OTAS_API_KEY']
+
+    response = requests.post(otasUrl+"api/v1/createLead", json = {
+        "api_key": apiKey,
+        "first_name": data["first_name"],
+        "last_name": data["last_name"],
+        "email": data["email"],
+        "phone": data["phone"],
     })
+    
+    return json.dumps(response.json())
 
 def askManager(data):
     print("askManager: "+json.dumps(data))
     return json.dumps({
         "status": True,
-        # "message": "The price is 20,000 USD per year"
         "message": "Question have been sent to manager and he will continue the conversation."
     })
 
@@ -37,41 +49,21 @@ def get_func_def():
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "name": {
+                    "first_name": {
                         "type": "string",
-                        "description": "The user's name"
+                        "description": "The student's first name"
+                    },
+                    "last_name": {
+                        "type": "string",
+                        "description": "The student's last name"
                     },
                     "phone": {
                         "type": "string",
-                        "description": "The user's phone"
+                        "description": "The student's phone"
                     },
                     "email": {
                         "type": "string",
-                        "description": "The user's email"
-                    },
-                    "nationalityId": {
-                        "type": "string",
-                        "description": "The student's country nationality id"
-                    },
-                    "residenceId": {
-                        "type": "string",
-                        "description": "The student's residence country id"
-                    },
-                    "programName": {
-                        "type": "string",
-                        "description": "The program's name student want to apply in"
-                    },
-                    "universityName": {
-                        "type": "string",
-                        "description": "The school's name student want to apply in"
-                    },
-                    "fatherName": {
-                        "type": "string",
-                        "description": "The student's father name"
-                    },
-                    "motherName": {
-                        "type": "string",
-                        "description": "The student's mother name"
+                        "description": "The student's email"
                     },
                     "lang": {
                         "type": "string",
@@ -113,16 +105,19 @@ def get_func_def():
         }
     ]
 
-def save_history(chat_id, content, response, source_documents):
+def save_history(chat_id, content, response, source_documents, timestamp):
     source_history_path = "histories/source_docs/"+chat_id+".json"
     if os.path.isfile(source_history_path):
         source_history = json.load(open(source_history_path))
     else :
         source_history = []
+    end_at = datetime.datetime.now().timestamp()
     source_history.append({
+        "request_date": timestamp,
         "question": content,
         "response": response,
         "source_documents": source_documents,
+        "end_at": end_at,
     })
     source_file = open(source_history_path, "w")  
     json.dump(source_history, source_file)
@@ -135,6 +130,8 @@ def callChat(content, chat_id = None, type = "user", function = None):
         messages = json.load(open(file_json))
     else :
         messages = []
+
+    timestamp = datetime.datetime.now().timestamp()
 
     datasource = ""
     source_documents = []
@@ -160,35 +157,23 @@ def callChat(content, chat_id = None, type = "user", function = None):
         "content": f"""
             Use the following pieces of context to answer user question.
             You are a student assistant to help students apply to OKTamam System.
-            You should answer only to the request and questions related to (learning,universities,Oktamam company), if so apolgaize to the user.
             Never say you are an AI model, always refer to yourself as a students assistant.
             If you do not know the answer call askManager Function and send the user question and the language of the conversation to it, with chat id.
             Always answer with shortes answer you can, do not say too much words.
             Never say reach out to the university directly or any other similar sentences, instead ask the manager and he will respond to you.
             It's important to append student language and chat id, when calling any functions.
             If the student wants to register you should ask him for some data one by one in separate questions:
-            - Name
+            - First Name
+            - Last Name
             - Phone
             - Email Address
-            - Nationality
-            - Residence Country
-            - Father name
-            - Mother name
-            when the user give you his/her name, email, and phone number and add user language, program name and university name to the parameters, for Nationality and Residence Country you have to match with countries ids and use the id of the country as a parameter instead of the name and call the registerStudent Function, without showing the ID in the conversation.
+            when the user give you his/her name, email, and phone number and add user language, and call the registerStudent Function.
             Never ask the student about his or her country IDs or show him or her any IDs.
             If there any issue occur then you must call askManager Function and send the question, the language of the conversation and all other paramters in JSON format caused the issue.
-
+            if the information isn't exist in document or you don't know the answer never say no information, instead call the askManager function.
 
             Chat Id: '{chat_id}'
             Context: '{datasource}'
-            Country ids:
-            - Sudan: 121
-            - Egypt: 122
-            - Turkey: 123
-            - United Arab Emirates: 124
-            - Saudi Arabia: 125
-            - Qatar: 126
-            - Oman: 127
         """
     })
 
@@ -217,7 +202,7 @@ def callChat(content, chat_id = None, type = "user", function = None):
     json.dump(messages, save_file)  
     save_file.close()  
 
-    save_history(chat_id, content, response, source_documents)
+    save_history(chat_id, content, response, source_documents, timestamp)
 
     if response.get("function_call"):
         available_functions = {
@@ -236,12 +221,57 @@ def callChat(content, chat_id = None, type = "user", function = None):
     else :
         source_history = []
 
+    diff = source_history[(len(source_history) - 1)]["end_at"] - source_history[0]["request_date"]
+    
+    seconds = diff % (24 * 3600)
+    hour = seconds // 3600
+    seconds %= 3600
+    minutes = seconds // 60
+    seconds %= 60
+
     return {
         "response": response, 
         "chat_id": chat_id, 
-        "message_id": (len(source_history) - 1)
+        "message_id": (len(source_history) - 1),
+        "conversation_duration": "%d:%02d:%02d" % (hour, minutes, seconds),
+        "total_requests": len(source_history),
         # "source_documents": source_documents
     }
+
+def scrape_and_save_embeddings(url):
+    try:
+        response = requests.get(url)
+        response.raise_for_status()
+
+        # Extract text content from the response
+        text_content = extract_text(response.text)
+        timestamp = datetime.datetime.now().timestamp()
+
+        path = f"{SOURCE_DIRECTORY}/file-{timestamp}.txt"
+        with open(path, 'w', encoding='utf-8') as file:
+            file.write(text_content)
+
+        documents = get_docs([path])
+        text_documents = split_documents(documents)
+        text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
+        texts = text_splitter.split_documents(text_documents)
+
+        # Create embeddings
+        embeddings = OpenAIEmbeddings()
+        db = Chroma.from_documents(
+            texts,
+            embeddings,
+            persist_directory=PERSIST_DIRECTORY,
+            client_settings=CHROMA_SETTINGS,
+        )
+        db.persist()
+        db = None
+
+
+        return True
+    except requests.exceptions.RequestException as e:
+        print(f"Failed to scrape the content: {str(e)}")
+        return False
 
 @app.route("/api/prompt_route", methods=["POST"])
 def prompt_route():
@@ -268,21 +298,60 @@ def report_answer():
     source_history_path = "histories/source_docs/"+chat_id+".json"
     if os.path.isfile(source_history_path):
         messages = json.load(open(source_history_path))
+
+        diff = messages[(len(messages) - 1)]["end_at"] - messages[0]["request_date"]
         
-        print("Reporting this response from AI model: ")
-        print("Quest: "+messages[message_id]["question"])
-        print("Answer: "+messages[message_id]["response"]["content"])
-        count = len(messages[message_id]["source_documents"])
-        print(f"Source documents : {count} Docs")
+        seconds = diff % (24 * 3600)
+        hour = seconds // 3600
+        seconds %= 3600
+        minutes = seconds // 60
+        seconds %= 60
+
+        
+        mydb = mysql.connector.connect(
+            host="localhost",
+            user="root",
+            password="Admin123456",
+            database="chat_db"
+        )
+        mycursor = mydb.cursor()
+
+        sql = "INSERT INTO reports (question, answer, source_docs, duration, chat_id) VALUES (%s, %s, %s, %s, %s)"
+        val = (
+            messages[message_id]["question"], 
+            messages[message_id]["response"]["content"], 
+            json.dumps(messages[message_id]["source_documents"]), 
+            "%d:%02d:%02d" % (hour, minutes, seconds),
+            chat_id,
+        )
+        mycursor.execute(sql, val)
+
+        mydb.commit()
+
+        print(mycursor.rowcount, "record inserted.")
 
         return jsonify({
             "status": True,
+            "affected_rows": mycursor.rowcount,
+            "message": "Data saved successfully",
         })
     else :
         return jsonify({
             "status": False,
             "message": "Invalid chat id, or conversation has been deleted."
         })
+
+@app.route("/api/load_url", methods=["POST"])
+def load_url():
+    data = request.get_json()
+
+    url = data.get("url")
+    status = scrape_and_save_embeddings(url)
+
+    return jsonify({
+        "status": status,
+        "message": ("Url saved successfully" if status else "Fail to save URL")
+    })
 
 if __name__ == '__main__':
     app.run(debug=False, port=5110)

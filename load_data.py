@@ -2,8 +2,6 @@ import logging
 import os
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, as_completed
 
-import click
-import torch
 from langchain.docstore.document import Document
 from langchain.embeddings import OpenAIEmbeddings
 from langchain.text_splitter import Language, RecursiveCharacterTextSplitter
@@ -44,6 +42,9 @@ def load_documents(source_dir: str) -> list[Document]:
         if file_extension in DOCUMENT_MAP.keys():
             paths.append(source_file_path)
 
+    return get_docs(paths)
+
+def get_docs(paths):
     # Have at least one worker and at most INGEST_THREADS workers
     n_workers = min(INGEST_THREADS, max(len(paths), 1))
     chunksize = round(len(paths) / n_workers)
